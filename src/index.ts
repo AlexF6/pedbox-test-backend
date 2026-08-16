@@ -1,9 +1,11 @@
 import "dotenv/config";
+import { syncCharacters } from "./services/sync.service";
 
 import express from "express";
 import cors from "cors";
 
 import { prisma } from "./lib/prisma";
+import characterRoutes from "./routes/character.routes";
 
 const app = express();
 
@@ -40,3 +42,19 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
 });
+
+app.post("/api/sync", async (_req, res) => {
+  try {
+    const result = await syncCharacters();
+
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Synchronization failed",
+    });
+  }
+});
+
+app.use("/api/characters", characterRoutes);
