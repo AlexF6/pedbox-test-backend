@@ -1,13 +1,67 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Location {
+  id         Int         @id @default(autoincrement())
+  externalId Int         @unique
+  name       String
+  type       String?
+  dimension  String?
+
+  characters Character[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Character {
+  id                  Int                 @id @default(autoincrement())
+  externalId          Int                 @unique
+  name                String
+  status              String
+  species             String
+  type                String?
+  gender              String
+  image               String
+  locationId          Int?
+  location            Location?           @relation(fields: [locationId], references: [id])
+  characterEpisodes   CharacterEpisode[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Episode {
+  id                  Int                 @id @default(autoincrement())
+  externalId          Int                 @unique
+  name                String
+  airDate             String
+  episodeCode         String
+  characterEpisodes   CharacterEpisode[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CharacterEpisode {
+  characterId Int
+  episodeId   Int
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  episode   Episode   @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@id([characterId, episodeId])
 }
