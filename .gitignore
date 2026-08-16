@@ -1,0 +1,28 @@
+# Dependencias
+node_modules/
+
+# Archivos de entorno y credenciales (¡NUNCA SUBIR A GIT!)
+.env
+.env.*
+!.env.example
+
+# Archivos de IA creados por Prisma (no los usas)
+.claude/
+.windsurf/
+.agents/
+skills-lock.json
+
+# Archivos de compilación de TypeScript
+dist/
+build/
+
+# Archivos de registro y caché
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
