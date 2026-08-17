@@ -1,54 +1,40 @@
-import {
-  describe,
-  expect,
-  it,
-  vi,
-  beforeEach,
-  beforeAll,
-} from "vitest";
-
-const { prismaMock, bcryptMock, jwtMock } = vi.hoisted(() => ({
-  prismaMock: {
-    user: {
-      findUnique: vi.fn(),
-      create: vi.fn(),
-    },
+const mockPrisma = {
+  user: {
+    findUnique: jest.fn(),
+    create: jest.fn(),
   },
+};
 
-  bcryptMock: {
-    hash: vi.fn(),
-    compare: vi.fn(),
-  },
+const mockBcrypt = {
+  hash: jest.fn(),
+  compare: jest.fn(),
+};
 
-  jwtMock: {
-    sign: vi.fn(),
-  },
+const mockJwt = {
+  sign: jest.fn(),
+};
+
+// En Jest, jest.mock se eleva (hoist) automáticamente al principio del archivo
+jest.mock("../lib/prisma", () => ({
+  prisma: mockPrisma,
 }));
 
-vi.mock("../lib/prisma", () => ({
-  prisma: prismaMock,
+jest.mock("bcrypt", () => ({
+  default: mockBcrypt,
+  hash: mockBcrypt.hash,
+  compare: mockBcrypt.compare,
 }));
 
-vi.mock("bcrypt", () => ({
-  default: bcryptMock,
+jest.mock("jsonwebtoken", () => ({
+  default: mockJwt,
+  sign: mockJwt.sign,
 }));
 
-vi.mock("jsonwebtoken", () => ({
-  default: jwtMock,
-}));
-
-let registerUser: (
-  email: string,
-  password: string,
-) => Promise<any>;
-
-let loginUser: (
-  email: string,
-  password: string,
-) => Promise<any>;
+let registerUser: (email: string, password: string) => Promise<any>;
+let loginUser: (email: string, password: string) => Promise<any>;
 
 beforeAll(async () => {
-  vi.resetModules();
+  jest.resetModules();
 
   process.env.JWT_SECRET = "test-secret";
 
@@ -60,16 +46,16 @@ beforeAll(async () => {
 
 describe("auth.service", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe("registerUser", () => {
     it("should register a new user", async () => {
-      prismaMock.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      bcryptMock.hash.mockResolvedValue("hashed-password");
+      mockBcrypt.hash.mockResolvedValue("hashed-password");
 
-      prismaMock.user.create.mockResolvedValue({
+      mockPrisma.user.create.mockResolvedValue({
         id: 1,
         email: "test@example.com",
         passwordHash: "hashed-password",
@@ -77,23 +63,17 @@ describe("auth.service", () => {
         updatedAt: new Date(),
       });
 
-      const result = await registerUser(
-        "test@example.com",
-        "password123",
-      );
+      const result = await registerUser("test@example.com", "password123");
 
-      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
         where: {
           email: "test@example.com",
         },
       });
 
-      expect(bcryptMock.hash).toHaveBeenCalledWith(
-        "password123",
-        10,
-      );
+      expect(mockBcrypt.hash).toHaveBeenCalledWith("password123", 10);
 
-      expect(prismaMock.user.create).toHaveBeenCalledWith({
+      expect(mockPrisma.user.create).toHaveBeenCalledWith({
         data: {
           email: "test@example.com",
           passwordHash: "hashed-password",
@@ -107,7 +87,7 @@ describe("auth.service", () => {
     });
 
     it("should throw when the user already exists", async () => {
-      prismaMock.user.findUnique.mockResolvedValue({
+      mockPrisma.user.findUnique.mockResolvedValue({
         id: 1,
         email: "test@example.com",
         passwordHash: "hashed-password",
@@ -116,21 +96,18 @@ describe("auth.service", () => {
       });
 
       await expect(
-        registerUser(
-          "test@example.com",
-          "password123",
-        ),
+        registerUser("test@example.com", "password123"),
       ).rejects.toThrow("USER_ALREADY_EXISTS");
 
-      expect(bcryptMock.hash).not.toHaveBeenCalled();
+      expect(mockBcrypt.hash).not.toHaveBeenCalled();
 
-      expect(prismaMock.user.create).not.toHaveBeenCalled();
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
     });
   });
 
   describe("loginUser", () => {
     it("should login with valid credentials", async () => {
-      prismaMock.user.findUnique.mockResolvedValue({
+      mockPrisma.user.findUnique.mockResolvedValue({
         id: 1,
         email: "test@example.com",
         passwordHash: "hashed-password",
@@ -138,27 +115,24 @@ describe("auth.service", () => {
         updatedAt: new Date(),
       });
 
-      bcryptMock.compare.mockResolvedValue(true);
+      mockBcrypt.compare.mockResolvedValue(true);
 
-      jwtMock.sign.mockReturnValue("test-jwt-token");
+      mockJwt.sign.mockReturnValue("test-jwt-token");
 
-      const result = await loginUser(
-        "test@example.com",
-        "password123",
-      );
+      const result = await loginUser("test@example.com", "password123");
 
-      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
         where: {
           email: "test@example.com",
         },
       });
 
-      expect(bcryptMock.compare).toHaveBeenCalledWith(
+      expect(mockBcrypt.compare).toHaveBeenCalledWith(
         "password123",
         "hashed-password",
       );
 
-      expect(jwtMock.sign).toHaveBeenCalledWith(
+      expect(mockJwt.sign).toHaveBeenCalledWith(
         {
           userId: 1,
           email: "test@example.com",
@@ -179,22 +153,19 @@ describe("auth.service", () => {
     });
 
     it("should throw when the user does not exist", async () => {
-      prismaMock.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValue(null);
 
       await expect(
-        loginUser(
-          "test@example.com",
-          "password123",
-        ),
+        loginUser("test@example.com", "password123"),
       ).rejects.toThrow("INVALID_CREDENTIALS");
 
-      expect(bcryptMock.compare).not.toHaveBeenCalled();
+      expect(mockBcrypt.compare).not.toHaveBeenCalled();
 
-      expect(jwtMock.sign).not.toHaveBeenCalled();
+      expect(mockJwt.sign).not.toHaveBeenCalled();
     });
 
     it("should throw when the password is invalid", async () => {
-      prismaMock.user.findUnique.mockResolvedValue({
+      mockPrisma.user.findUnique.mockResolvedValue({
         id: 1,
         email: "test@example.com",
         passwordHash: "hashed-password",
@@ -202,16 +173,13 @@ describe("auth.service", () => {
         updatedAt: new Date(),
       });
 
-      bcryptMock.compare.mockResolvedValue(false);
+      mockBcrypt.compare.mockResolvedValue(false);
 
       await expect(
-        loginUser(
-          "test@example.com",
-          "wrong-password",
-        ),
+        loginUser("test@example.com", "wrong-password"),
       ).rejects.toThrow("INVALID_CREDENTIALS");
 
-      expect(jwtMock.sign).not.toHaveBeenCalled();
+      expect(mockJwt.sign).not.toHaveBeenCalled();
     });
   });
 });

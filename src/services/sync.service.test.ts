@@ -1,29 +1,29 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const prismaMock = vi.hoisted(() => ({
+const mockPrisma = {
   location: {
-    upsert: vi.fn(),
+    upsert: jest.fn(),
   },
   character: {
-    upsert: vi.fn(),
+    upsert: jest.fn(),
   },
   episode: {
-    upsert: vi.fn(),
+    upsert: jest.fn(),
   },
   characterEpisode: {
-    upsert: vi.fn(),
+    upsert: jest.fn(),
   },
-}));
+};
 
-vi.mock("../lib/prisma", () => ({
-  prisma: prismaMock,
+// En Jest el factory de jest.mock se levanta (hoist) automáticamente.
+// La variable debe empezar por "mock" para ser usada aquí dentro.
+jest.mock("../lib/prisma", () => ({
+  prisma: mockPrisma,
 }));
 
 import { syncCharacters } from "./sync.service";
 
 describe("syncCharacters", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   it("should synchronize characters, episodes and relationships", async () => {
@@ -59,43 +59,40 @@ describe("syncCharacters", () => {
       episode: "S01E02",
     };
 
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockResolvedValueOnce(
-          new Response(
-            JSON.stringify({
-              info: {
-                count: 1,
-                pages: 1,
-                next: null,
-                prev: null,
-              },
-              results: [character],
-            }),
-            {
-              status: 200,
-              headers: {
-                "Content-Type": "application/json",
-              },
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            info: {
+              count: 1,
+              pages: 1,
+              next: null,
+              prev: null,
             },
-          ),
-        )
-        .mockResolvedValueOnce(
-          new Response(
-            JSON.stringify([episode1, episode2]),
-            {
-              status: 200,
-              headers: {
-                "Content-Type": "application/json",
-              },
+            results: [character],
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
             },
-          ),
+          },
         ),
-    );
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([episode1, episode2]),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        ),
+      ) as any;
 
-    prismaMock.episode.upsert
+    mockPrisma.episode.upsert
       .mockResolvedValueOnce({
         id: 10,
         externalId: 1,
@@ -105,19 +102,19 @@ describe("syncCharacters", () => {
         externalId: 2,
       });
 
-    prismaMock.location.upsert.mockResolvedValue({
+    mockPrisma.location.upsert.mockResolvedValue({
       id: 20,
       externalId: 1,
       name: "Earth",
     });
 
-    prismaMock.character.upsert.mockResolvedValue({
+    mockPrisma.character.upsert.mockResolvedValue({
       id: 30,
       externalId: 1,
       name: "Rick Sanchez",
     });
 
-    prismaMock.characterEpisode.upsert.mockResolvedValue({});
+    mockPrisma.characterEpisode.upsert.mockResolvedValue({});
 
     const result = await syncCharacters();
 
@@ -127,12 +124,10 @@ describe("syncCharacters", () => {
       relationships: 2,
     });
 
-    expect(prismaMock.location.upsert).toHaveBeenCalledTimes(1);
-    expect(prismaMock.character.upsert).toHaveBeenCalledTimes(1);
-    expect(prismaMock.episode.upsert).toHaveBeenCalledTimes(2);
-    expect(
-      prismaMock.characterEpisode.upsert,
-    ).toHaveBeenCalledTimes(2);
+    expect(mockPrisma.location.upsert).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.character.upsert).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.episode.upsert).toHaveBeenCalledTimes(2);
+    expect(mockPrisma.characterEpisode.upsert).toHaveBeenCalledTimes(2);
   });
 
   it("should synchronize a character without a location", async () => {
@@ -151,24 +146,21 @@ describe("syncCharacters", () => {
       episode: [],
     };
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            info: {
-              count: 1,
-              pages: 1,
-              next: null,
-              prev: null,
-            },
-            results: [character],
-          }),
-        ),
+    global.fetch = jest.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          info: {
+            count: 1,
+            pages: 1,
+            next: null,
+            prev: null,
+          },
+          results: [character],
+        }),
       ),
-    );
+    ) as any;
 
-    prismaMock.character.upsert.mockResolvedValue({
+    mockPrisma.character.upsert.mockResolvedValue({
       id: 40,
       externalId: 2,
       name: "Morty Smith",
@@ -182,9 +174,8 @@ describe("syncCharacters", () => {
       relationships: 0,
     });
 
-    expect(prismaMock.location.upsert).not.toHaveBeenCalled();
-
-    expect(prismaMock.character.upsert).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.location.upsert).not.toHaveBeenCalled();
+    expect(mockPrisma.character.upsert).toHaveBeenCalledTimes(1);
   });
 
   it("should fetch characters from multiple pages", async () => {
@@ -218,7 +209,7 @@ describe("syncCharacters", () => {
       episode: [],
     };
 
-    const fetchMock = vi
+    const fetchMock = jest
       .fn()
       .mockResolvedValueOnce(
         new Response(
@@ -247,9 +238,9 @@ describe("syncCharacters", () => {
         ),
       );
 
-    vi.stubGlobal("fetch", fetchMock);
+    global.fetch = fetchMock as any;
 
-    prismaMock.character.upsert
+    mockPrisma.character.upsert
       .mockResolvedValueOnce({
         id: 1,
         externalId: 1,
@@ -291,9 +282,7 @@ describe("syncCharacters", () => {
         name: "unknown",
         url: "",
       },
-      episode: [
-        "https://rickandmortyapi.com/api/episode/1",
-      ],
+      episode: ["https://rickandmortyapi.com/api/episode/1"],
     };
 
     const character2 = {
@@ -308,12 +297,10 @@ describe("syncCharacters", () => {
         name: "unknown",
         url: "",
       },
-      episode: [
-        "https://rickandmortyapi.com/api/episode/1",
-      ],
+      episode: ["https://rickandmortyapi.com/api/episode/1"],
     };
 
-    const fetchMock = vi
+    const fetchMock = jest
       .fn()
       .mockResolvedValueOnce(
         new Response(
@@ -339,14 +326,14 @@ describe("syncCharacters", () => {
         ),
       );
 
-    vi.stubGlobal("fetch", fetchMock);
+    global.fetch = fetchMock as any;
 
-    prismaMock.episode.upsert.mockResolvedValue({
+    mockPrisma.episode.upsert.mockResolvedValue({
       id: 10,
       externalId: 1,
     });
 
-    prismaMock.character.upsert
+    mockPrisma.character.upsert
       .mockResolvedValueOnce({
         id: 20,
         externalId: 1,
@@ -358,17 +345,13 @@ describe("syncCharacters", () => {
         name: "Morty Smith",
       });
 
-    prismaMock.characterEpisode.upsert.mockResolvedValue({});
+    mockPrisma.characterEpisode.upsert.mockResolvedValue({});
 
     const result = await syncCharacters();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-
-    expect(prismaMock.episode.upsert).toHaveBeenCalledTimes(1);
-
-    expect(
-      prismaMock.characterEpisode.upsert,
-    ).toHaveBeenCalledTimes(2);
+    expect(mockPrisma.episode.upsert).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.characterEpisode.upsert).toHaveBeenCalledTimes(2);
 
     expect(result).toEqual({
       synced: 2,
@@ -378,29 +361,24 @@ describe("syncCharacters", () => {
   });
 
   it("should throw when the external API returns a non-429 error", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(null, {
-          status: 500,
-        }),
-      ),
-    );
+    global.fetch = jest.fn().mockResolvedValue(
+      new Response(null, {
+        status: 500,
+      }),
+    ) as any;
 
-    await expect(
-      syncCharacters(),
-    ).rejects.toThrow(
+    await expect(syncCharacters()).rejects.toThrow(
       "External API request failed: 500",
     );
 
-    expect(prismaMock.character.upsert).not.toHaveBeenCalled();
-    expect(prismaMock.episode.upsert).not.toHaveBeenCalled();
+    expect(mockPrisma.character.upsert).not.toHaveBeenCalled();
+    expect(mockPrisma.episode.upsert).not.toHaveBeenCalled();
   });
 
   it("should retry when the external API returns 429", async () => {
-    vi.useFakeTimers();
+    jest.useFakeTimers();
 
-    const fetchMock = vi
+    const fetchMock = jest
       .fn()
       .mockResolvedValueOnce(
         new Response(null, {
@@ -421,11 +399,11 @@ describe("syncCharacters", () => {
         ),
       );
 
-    vi.stubGlobal("fetch", fetchMock);
+    global.fetch = fetchMock as any;
 
     const promise = syncCharacters();
 
-    await vi.advanceTimersByTimeAsync(2000);
+    await jest.advanceTimersByTimeAsync(2000);
 
     const result = await promise;
 
@@ -437,36 +415,32 @@ describe("syncCharacters", () => {
       relationships: 0,
     });
 
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   it("should fail after three 429 responses", async () => {
-    vi.useFakeTimers();
+    jest.useFakeTimers();
 
     try {
-      const fetchMock = vi
-        .fn()
-        .mockResolvedValue(
-          new Response(null, {
-            status: 429,
-          }),
-        );
+      const fetchMock = jest.fn().mockResolvedValue(
+        new Response(null, {
+          status: 429,
+        }),
+      );
 
-      vi.stubGlobal("fetch", fetchMock);
+      global.fetch = fetchMock as any;
 
-      const promise = expect(
-        syncCharacters(),
-      ).rejects.toThrow(
+      const promise = expect(syncCharacters()).rejects.toThrow(
         "External API rate limit exceeded after 3 attempts",
       );
 
-      await vi.advanceTimersByTimeAsync(6000);
+      await jest.advanceTimersByTimeAsync(6000);
 
       await promise;
 
       expect(fetchMock).toHaveBeenCalledTimes(3);
     } finally {
-      vi.useRealTimers();
+      jest.useRealTimers();
     }
   });
 });
