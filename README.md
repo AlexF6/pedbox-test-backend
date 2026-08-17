@@ -41,11 +41,11 @@ Create a `.env` file in the root directory. You can use the following template t
 PORT=3000
 
 # Database connection
-DATABASE_URL="postgresql://username:password@localhost:5432/database_name?schema=public"
+DATABASE_URL=postgresql://username:password@localhost:5432/database_name?schema=public
 
 # JWT Configuration
-JWT_SECRET="your_jwt_secret_key"
-JWT_EXPIRES_IN="1d"
+JWT_SECRET=your_jwt_secret_key
+JWT_EXPIRES_IN=1d
 ```
 
 ### Database Setup
