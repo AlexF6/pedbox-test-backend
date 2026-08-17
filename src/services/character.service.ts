@@ -1,32 +1,25 @@
 import { prisma } from "../lib/prisma";
 
-interface GetCharactersParams {
-  page: number;
-  limit: number;
-}
-
-export async function getCharacters({
-  page,
-  limit,
-}: GetCharactersParams) {
+export async function getCharacters(
+  page: number,
+  limit: number,
+) {
   const skip = (page - 1) * limit;
 
   const [characters, total] = await Promise.all([
     prisma.character.findMany({
       skip,
       take: limit,
-      orderBy: {
-        id: "asc",
-      },
       include: {
         location: true,
+      },
+      orderBy: {
+        id: "asc",
       },
     }),
 
     prisma.character.count(),
   ]);
-
-  const totalPages = Math.ceil(total / limit);
 
   return {
     data: characters,
@@ -34,7 +27,7 @@ export async function getCharacters({
       page,
       limit,
       total,
-      totalPages,
+      totalPages: Math.ceil(total / limit),
     },
   };
 }

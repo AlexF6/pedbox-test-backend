@@ -1,18 +1,17 @@
 import "dotenv/config";
-import { syncCharacters } from "./services/sync.service";
-import authRoutes from "./routes/auth.routes";
 
 import express from "express";
 import cors from "cors";
 
-import { prisma } from "./lib/prisma";
+import authRoutes from "./routes/auth.routes";
 import characterRoutes from "./routes/character.routes";
+import syncRoutes from "./routes/sync.routes";
+import { errorMiddleware } from "./middlewares/error.middleware";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use("/api/auth", authRoutes);
 
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -21,42 +20,14 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-app.get("/api/test-db", async (_req, res) => {
-  try {
-    const characters = await prisma.character.count();
+app.use("/api/auth", authRoutes);
+app.use("/api/characters", characterRoutes);
+app.use("/api/sync", syncRoutes);
 
-    res.json({
-      connected: true,
-      characters,
-    });
-  } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      connected: false,
-      message: "Database connection failed",
-    });
-  }
-});
+app.use(errorMiddleware);
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
 });
-
-app.post("/api/sync", async (_req, res) => {
-  try {
-    const result = await syncCharacters();
-
-    res.json(result);
-  } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      message: "Synchronization failed",
-    });
-  }
-});
-
-app.use("/api/characters", characterRoutes);

@@ -1,14 +1,24 @@
 import { Router } from "express";
 
 import {
-  getCharacterByIdController,
   getCharactersController,
+  getCharacterByIdController,
 } from "../controllers/character.controller";
+
+import { authMiddleware } from "../middlewares/auth.middleware";
 
 const router = Router();
 
-router.get("/", getCharactersController);
+router.get(
+  "/",
+  authMiddleware,
+  getCharactersController,
+);
 
-router.get("/:id", getCharacterByIdController);
+router.get(
+  "/:id",
+  authMiddleware,
+  getCharacterByIdController,
+);
 
 export default router;

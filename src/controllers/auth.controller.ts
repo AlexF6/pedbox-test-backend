@@ -1,83 +1,40 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 
 import {
-  loginUser,
   registerUser,
+  loginUser,
 } from "../services/auth.service";
 
-export async function registerController(
+import { authSchema } from "../utils/validation";
+
+export const registerController = async (
   req: Request,
   res: Response,
-) {
+  next: NextFunction,
+) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = authSchema.parse(req.body);
 
-    if (!email || !password) {
-      return res.status(400).json({
-        message: "Email and password are required",
-      });
-    }
+    const result = await registerUser(email, password);
 
-    const user = await registerUser(
-      email,
-      password,
-    );
-
-    res.status(201).json({
-      message: "User registered successfully",
-      user,
-    });
+    res.status(201).json(result);
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message === "USER_ALREADY_EXISTS"
-    ) {
-      return res.status(409).json({
-        message: "User already exists",
-      });
-    }
-
-    console.error(error);
-
-    res.status(500).json({
-      message: "Registration failed",
-    });
+    next(error);
   }
-}
+};
 
-export async function loginController(
+export const loginController = async (
   req: Request,
   res: Response,
-) {
+  next: NextFunction,
+) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = authSchema.parse(req.body);
 
-    if (!email || !password) {
-      return res.status(400).json({
-        message: "Email and password are required",
-      });
-    }
-
-    const result = await loginUser(
-      email,
-      password,
-    );
+    const result = await loginUser(email, password);
 
     res.json(result);
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message === "INVALID_CREDENTIALS"
-    ) {
-      return res.status(401).json({
-        message: "Invalid email or password",
-      });
-    }
-
-    console.error(error);
-
-    res.status(500).json({
-      message: "Login failed",
-    });
+    next(error);
   }
-}
+};

@@ -1,59 +1,45 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
+
 import {
-  getCharacterById,
   getCharacters,
+  getCharacterById,
 } from "../services/character.service";
 
-export async function getCharactersController(
+export const getCharactersController = async (
   req: Request,
   res: Response,
-) {
+  next: NextFunction,
+) => {
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
 
-    const result = await getCharacters({
-      page,
-      limit,
-    });
+    const result = await getCharacters(page, limit);
 
     res.json(result);
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      message: "Failed to fetch characters",
-    });
+    next(error);
   }
-}
+};
 
-export async function getCharacterByIdController(
+export const getCharacterByIdController = async (
   req: Request,
   res: Response,
-) {
+  next: NextFunction,
+) => {
   try {
     const id = Number(req.params.id);
 
-    if (Number.isNaN(id)) {
-      return res.status(400).json({
-        message: "Invalid character ID",
-      });
-    }
+    const result = await getCharacterById(id);
 
-    const character = await getCharacterById(id);
-
-    if (!character) {
+    if (!result) {
       return res.status(404).json({
         message: "Character not found",
       });
     }
 
-    res.json(character);
+    res.json(result);
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      message: "Failed to fetch character",
-    });
+    next(error);
   }
-}
+};
