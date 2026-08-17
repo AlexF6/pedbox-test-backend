@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
+const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || "15m") as jwt.SignOptions["expiresIn"];
 
 export async function registerUser(
   email: string,
@@ -39,9 +40,7 @@ export async function loginUser(
   password: string,
 ) {
   const user = await prisma.user.findUnique({
-    where: {
-      email,
-    },
+    where: { email },
   });
 
   if (!user) {
@@ -64,7 +63,7 @@ export async function loginUser(
     },
     JWT_SECRET,
     {
-      expiresIn: "1h",
+      expiresIn: JWT_EXPIRES_IN,
     },
   );
 

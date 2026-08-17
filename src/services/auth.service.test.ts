@@ -139,7 +139,7 @@ describe("auth.service", () => {
         },
         "test-secret",
         {
-          expiresIn: "1h",
+          expiresIn: "15m",
         },
       );
 
