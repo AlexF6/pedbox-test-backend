@@ -18,6 +18,12 @@ interface RickAndMortyCharacter {
 }
 
 interface RickAndMortyResponse {
+  info: {
+    count: number;
+    pages: number;
+    next: string | null;
+    prev: string | null;
+  };
   results: RickAndMortyCharacter[];
 }
 
@@ -30,21 +36,14 @@ interface RickAndMortyEpisode {
 
 export async function syncCharacters() {
   // -------------------------
-  // 1. GET CHARACTERS
+  // 1. GET ALL CHARACTERS
   // -------------------------
 
-  const response = await fetch(
-    `${RICK_AND_MORTY_API}/character?page=1`,
+  const characters = await fetchAllCharacters();
+
+  console.log(
+    `Found ${characters.length} characters`,
   );
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch characters");
-  }
-
-  const data =
-    (await response.json()) as RickAndMortyResponse;
-
-  const characters = data.results;
 
   // -------------------------
   // 2. COLLECT EPISODE IDS
@@ -81,11 +80,13 @@ export async function syncCharacters() {
       where: {
         externalId: episode.id,
       },
+
       update: {
         name: episode.name,
         airDate: episode.air_date,
         episodeCode: episode.episode,
       },
+
       create: {
         externalId: episode.id,
         name: episode.name,
@@ -111,22 +112,24 @@ export async function syncCharacters() {
       character.location.name !== "unknown" &&
       character.location.url
     ) {
-      const location = await prisma.location.upsert({
-        where: {
-          externalId: getExternalId(
-            character.location.url,
-          ),
-        },
-        update: {
-          name: character.location.name,
-        },
-        create: {
-          externalId: getExternalId(
-            character.location.url,
-          ),
-          name: character.location.name,
-        },
-      });
+      const locationExternalId =
+        getExternalId(character.location.url);
+
+      const location =
+        await prisma.location.upsert({
+          where: {
+            externalId: locationExternalId,
+          },
+
+          update: {
+            name: character.location.name,
+          },
+
+          create: {
+            externalId: locationExternalId,
+            name: character.location.name,
+          },
+        });
 
       locationId = location.id;
     }
@@ -136,6 +139,7 @@ export async function syncCharacters() {
         where: {
           externalId: character.id,
         },
+
         update: {
           name: character.name,
           status: character.status,
@@ -145,6 +149,7 @@ export async function syncCharacters() {
           image: character.image,
           locationId,
         },
+
         create: {
           externalId: character.id,
           name: character.name,
@@ -180,7 +185,9 @@ export async function syncCharacters() {
             episodeId,
           },
         },
+
         update: {},
+
         create: {
           characterId: savedCharacter.id,
           episodeId,
@@ -199,6 +206,43 @@ export async function syncCharacters() {
   };
 }
 
+// -------------------------
+// FETCH ALL CHARACTERS
+// -------------------------
+
+async function fetchAllCharacters(): Promise<
+  RickAndMortyCharacter[]
+> {
+  const characters: RickAndMortyCharacter[] = [];
+
+  let nextUrl:
+    | string
+    | null = `${RICK_AND_MORTY_API}/character?page=1`;
+
+  while (nextUrl) {
+    const response = await fetch(nextUrl);
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch characters: ${response.status}`,
+      );
+    }
+
+    const data =
+      (await response.json()) as RickAndMortyResponse;
+
+    characters.push(...data.results);
+
+    nextUrl = data.info.next;
+  }
+
+  return characters;
+}
+
+// -------------------------
+// FETCH EPISODES
+// -------------------------
+
 async function fetchEpisodes(
   ids: number[],
 ): Promise<RickAndMortyEpisode[]> {
@@ -206,7 +250,9 @@ async function fetchEpisodes(
     return [];
   }
 
-  const url = `${RICK_AND_MORTY_API}/episode/${ids.join(",")}`;
+  const url =
+    `${RICK_AND_MORTY_API}/episode/` +
+    ids.join(",");
 
   const response = await fetch(url);
 
@@ -221,17 +267,28 @@ async function fetchEpisodes(
       | RickAndMortyEpisode
       | RickAndMortyEpisode[];
 
-  return Array.isArray(data) ? data : [data];
+  return Array.isArray(data)
+    ? data
+    : [data];
 }
 
-function getExternalId(url: string): number {
-  const id = url.split("/").pop();
+// -------------------------
+// GET EXTERNAL ID
+// -------------------------
 
-  if (!id) {
+function getExternalId(url: string): number {
+  const id = Number(
+    url.split("/").pop(),
+  );
+
+  if (
+    !Number.isInteger(id) ||
+    id < 1
+  ) {
     throw new Error(
       `Invalid Rick and Morty URL: ${url}`,
     );
   }
 
-  return Number(id);
+  return id;
 }
